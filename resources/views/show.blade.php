@@ -31,7 +31,7 @@
     <div class="stats">
         <div class="stat"><b>{{ number_format($results->totalExposed()) }}</b><span>exposed scopes</span></div>
         @foreach ($definition->weights as $variant => $weight)
-            <div class="stat"><b>{{ number_format($results->exposed($variant)) }}</b><span><span class="mono">{{ $variant }}</span>@if ($loop->first) (control)@endif · weight {{ $weight }} of {{ array_sum($definition->weights) }}</span></div>
+            <div class="stat"><b>{{ number_format($results->exposed($variant)) }}</b><span><span class="mono">{{ $variant }}</span>@if ($loop->first && $variant !== 'control') (control)@endif · weight {{ $weight }} of {{ array_sum($definition->weights) }}</span></div>
         @endforeach
     </div>
 
@@ -43,6 +43,7 @@
             $intervals = [];
             foreach ($rows as $r) { $intervals[$r['variant']] = Statistics::wilson($r['converted'], $r['exposed'], 1 - $results->alpha()); }
             $scale = max(0.0001, ...array_values(array_map(fn ($i) => $i[1] ?? 0, $intervals))) * 1.08;
+            $anyConversions = array_sum(array_column($rows, 'converted')) > 0;
         @endphp
         <div class="panel">
             <div class="row" style="justify-content: space-between">
@@ -76,12 +77,14 @@
                     @foreach ($rows as $row)
                         @php $ci = $intervals[$row['variant']]; @endphp
                         <tr>
-                            <td><span class="mono"><b>{{ $row['variant'] }}</b></span>@if ($row['control']) <span class="pill outline">control</span>@endif @if ($ended && $state['winner'] === $row['variant'])<span class="pill accent">winner</span>@endif</td>
+                            <td><span class="mono"><b>{{ $row['variant'] }}</b></span>@if ($row['control'] && $row['variant'] !== 'control') <span class="pill outline">control</span>@endif @if ($ended && $state['winner'] === $row['variant'])<span class="pill accent">winner</span>@endif</td>
                             <td class="num">{{ number_format($row['exposed']) }}</td>
                             <td class="num">{{ number_format($row['converted']) }}</td>
                             <td class="num"><b>{{ Format::percent($row['rate']) }}</b></td>
                             <td class="hide-sm">
-                                @if ($row['rate'] !== null)
+                                @if (! $anyConversions)
+                                    <span class="muted small">no conversions yet</span>
+                                @elseif ($row['rate'] !== null)
                                     <div class="rate" title="{{ $row['variant'] }}: {{ Format::percent($row['rate']) }}, interval {{ Format::percent($ci[0]) }} to {{ Format::percent($ci[1]) }}">
                                         <span class="track"></span>
                                         <span class="fill {{ $row['control'] ? 'control' : 'variant' }}" style="width: {{ round($row['rate'] / $scale * 100, 2) }}%"></span>
@@ -90,7 +93,7 @@
                                 @endif
                             </td>
                             <td class="num">{{ $row['control'] ? '' : Format::signedPercent($row['lift']) }}</td>
-                            <td class="num hide-sm small">{{ $row['control'] ? '' : Format::points((float) $row['diff']).' pp '.Format::interval($row['ci']) }}</td>
+                            <td class="num hide-sm small">{{ $row['control'] ? '' : ($anyConversions && $row['ci'] !== null ? Format::points((float) $row['diff']).' pp '.Format::interval($row['ci']) : '–') }}</td>
                             <td class="num">{{ $row['control'] ? '' : Format::pValue($row['p']) }}</td>
                             <td class="num">{{ $row['control'] ? '' : Format::percent($row['probability'], 1) }}</td>
                             <td>
@@ -142,7 +145,7 @@
                 <label class="small muted" for="winner">Winner</label>
                 <select name="winner" id="winner" @disabled(! $canManage)>
                     @foreach ($definition->variants() as $variant)
-                        <option value="{{ $variant }}">{{ $variant }}{{ $loop->first ? ' (control)' : '' }}</option>
+                        <option value="{{ $variant }}">{{ $variant }}{{ $loop->first && $variant !== 'control' ? ' (control)' : '' }}</option>
                     @endforeach
                 </select>
                 <button class="btn primary" type="submit" @disabled(! $canManage)>End and roll out</button>

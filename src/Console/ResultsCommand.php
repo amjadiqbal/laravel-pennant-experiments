@@ -22,7 +22,7 @@ final class ResultsCommand extends Command
         if (! is_string($name)) {
             $rows = [];
             foreach ($experiments->definitions() as $experiment => $definition) {
-                $rows[] = [$experiment, $experiments->winner($experiment) === null ? 'running' : 'ended → '.$experiments->winner($experiment), implode(', ', $definition->variants()), implode(', ', $definition->goals), $experiments->results($experiment)->totalExposed()];
+                $rows[] = [$experiment, $experiments->winner($experiment) === null ? 'running' : 'ended, winner: '.$experiments->winner($experiment), implode(', ', $definition->variants()), implode(', ', $definition->goals), $experiments->results($experiment)->totalExposed()];
             }
             $this->table(['Experiment', 'Status', 'Variants', 'Goals', 'Exposed'], $rows);
 
@@ -47,7 +47,7 @@ final class ResultsCommand extends Command
             $rows = [];
             foreach ($results->rows($goal) as $row) {
                 $rows[] = [
-                    $row['variant'].($row['control'] ? ' (control)' : ''),
+                    $row['variant'].($row['control'] && $row['variant'] !== 'control' ? ' (control)' : ''),
                     $row['exposed'],
                     $row['converted'],
                     Format::percent($row['rate']),

@@ -41,6 +41,16 @@ it('lists experiments and shows results', function () {
     $this->get('/pennant/experiments/nope')->assertNotFound();
 });
 
+it('draws no interval bars and no difference for a goal without conversions', function () {
+    Gate::define('viewPennantExperiments', fn ($user = null) => true);
+    foreach (range(1, 4) as $n) {
+        Experiments::expose('checkout-button', $this->user($n));
+    }
+
+    $this->get('/pennant/experiments/checkout-button')->assertOk()
+        ->assertSee('no conversions yet')->assertDontSee('class="rate"', false)->assertDontSee('[0.00, 0.00]');
+});
+
 it('ends the experiment from the page and shows the winner', function () {
     Gate::define('viewPennantExperiments', fn ($user = null) => true);
     $user = $this->user();
