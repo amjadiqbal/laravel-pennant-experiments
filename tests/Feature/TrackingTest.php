@@ -2,6 +2,7 @@
 
 use AmjadIqbal\PennantExperiments\Facades\Experiments;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -129,7 +130,7 @@ it('leaves out bots and privacy signals for request participants, signed in or n
 it('sets no visitor cookie for a privacy signal, and counts again when it is not honoured', function () {
     $this->app['request']->headers->set('Sec-GPC', '1');
     Experiments::expose('exp');
-    expect(Illuminate\Support\Facades\Cookie::queued('pennant_experiments_visitor'))->toBeNull()
+    expect(Cookie::queued('pennant_experiments_visitor'))->toBeNull()
         ->and(DB::table('pennant_experiment_exposures')->count())->toBe(0);
 
     config(['pennant-experiments.respect_privacy_signals' => false]);
