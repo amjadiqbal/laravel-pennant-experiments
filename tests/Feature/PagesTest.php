@@ -53,6 +53,7 @@ it('draws no interval bars and no difference for a goal without conversions', fu
 
 it('ends the experiment from the page and shows the winner', function () {
     Gate::define('viewPennantExperiments', fn ($user = null) => true);
+    Gate::define('managePennantExperiments', fn ($user = null) => true);
     $user = $this->user();
     Experiments::expose('checkout-button', $user);
 
@@ -61,7 +62,7 @@ it('ends the experiment from the page and shows the winner', function () {
         ->assertRedirect('/pennant/experiments/checkout-button');
 
     expect(DB::table('pennant_experiments')->value('ended_by'))->toBe('User 1');
-    $this->get('/pennant/experiments/checkout-button')->assertSee('winner')->assertSee('Run again');
+    $this->get('/pennant/experiments/checkout-button')->assertSee('winner')->assertSee('Start over');
     $this->post('/pennant/experiments/checkout-button/end', ['winner' => 'control'])->assertSessionHasErrors('winner');
 
     $this->post('/pennant/experiments/checkout-button/restart')->assertRedirect();
@@ -83,4 +84,11 @@ it('shows experiments with data but no definition any more', function () {
 
 it('reports itself in php artisan about', function () {
     $this->artisan('about')->expectsOutputToContain('Pennant Experiments')->assertSuccessful();
+});
+
+it('keeps the manage gate local-only when the app defines only the view gate', function () {
+    Gate::define('viewPennantExperiments', fn ($user = null) => true);
+    $this->get('/pennant/experiments/checkout-button')->assertOk()->assertSee('read-only');
+    $this->post('/pennant/experiments/checkout-button/end', ['winner' => 'green'])->assertForbidden();
+    expect(Experiments::isRunning('checkout-button'))->toBeTrue();
 });

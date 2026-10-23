@@ -79,7 +79,7 @@ final class ResultsController
         $this->experiments->restart($experiment);
 
         return redirect()->route('pennant-experiments.show', $experiment)
-            ->with('pennant-experiments.status', 'Running again. Stored values from the rollout were removed, so everyone is assigned afresh.');
+            ->with('pennant-experiments.status', 'Started over: earlier exposures and conversions were deleted, stored values were removed, and everyone is assigned afresh.');
     }
 
     /** @return array<string, mixed> */

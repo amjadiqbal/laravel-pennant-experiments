@@ -69,19 +69,19 @@ it('tracks from JavaScript with the server-side participant, never one from the 
     $user = $this->user();
     $this->actingAs($user);
 
-    $variant = $this->postJson('/_experiments/expose', ['experiment' => 'exp', 'scope' => 'App\Models\User|999'])
+    $variant = $this->withHeader('Origin', 'http://localhost')->postJson('/_experiments/expose', ['experiment' => 'exp', 'scope' => 'App\Models\User|999'])
         ->assertOk()->json('variant');
-    $this->postJson('/_experiments/convert', ['experiment' => 'exp', 'goal' => 'purchase'])
+    $this->withHeader('Origin', 'http://localhost')->postJson('/_experiments/convert', ['experiment' => 'exp', 'goal' => 'purchase'])
         ->assertOk()->assertJson(['recorded' => true]);
-    $this->postJson('/_experiments/convert', ['experiment' => 'exp', 'goal' => 'refund'])->assertStatus(422);
-    $this->postJson('/_experiments/expose', ['experiment' => 'nope'])->assertNotFound();
+    $this->withHeader('Origin', 'http://localhost')->postJson('/_experiments/convert', ['experiment' => 'exp', 'goal' => 'refund'])->assertStatus(422);
+    $this->withHeader('Origin', 'http://localhost')->postJson('/_experiments/expose', ['experiment' => 'nope'])->assertNotFound();
     $this->getJson('/_experiments/variant/exp')->assertOk()->assertJson(['variant' => $variant]);
 
     expect(DB::table('pennant_experiment_exposures')->pluck('scope')->all())->toBe([$user::class.'|'.$user->id]);
 });
 
 it('gives guests a visitor cookie on the first tracking call', function () {
-    $response = $this->withHeader('User-Agent', 'Mozilla/5.0 Test')->postJson('/_experiments/expose', ['experiment' => 'exp'])->assertOk();
+    $response = $this->withHeaders(['User-Agent' => 'Mozilla/5.0 Test', 'Origin' => 'http://localhost'])->postJson('/_experiments/expose', ['experiment' => 'exp'])->assertOk();
     $cookie = collect($response->headers->getCookies())->firstWhere(fn ($c) => $c->getName() === 'pennant_experiments_visitor');
     expect($cookie)->not->toBeNull()
         ->and(DB::table('pennant_experiment_exposures')->value('scope'))->toStartWith('visitor|');
@@ -90,4 +90,67 @@ it('gives guests a visitor cookie on the first tracking call', function () {
 it('renders the JavaScript helper', function () {
     $html = Blade::render('@experimentsScript');
     expect($html)->toContain('window.PennantExperiments')->toContain('_experiments\\/convert')->toContain('X-CSRF-TOKEN');
+});
+
+it('refuses tracking writes from another origin, or with no origin at all', function () {
+    $this->flushHeaders()->withHeader('Origin', 'https://evil.example')->postJson('/_experiments/expose', ['experiment' => 'exp'])->assertForbidden();
+    $this->flushHeaders()->withHeader('Origin', 'http://localhost:8080')->postJson('/_experiments/expose', ['experiment' => 'exp'])->assertForbidden();
+    $this->flushHeaders()->withHeader('Origin', 'https://localhost')->postJson('/_experiments/expose', ['experiment' => 'exp'])->assertForbidden();
+    $this->flushHeaders()->postJson('/_experiments/convert', ['experiment' => 'exp', 'goal' => 'signup'])->assertForbidden();
+    $this->flushHeaders()->withHeader('Referer', 'http://localhost/shop?x=1')->postJson('/_experiments/expose', ['experiment' => 'exp'])->assertOk();
+    $this->flushHeaders()->withHeader('Origin', 'http://LOCALHOST:80')->postJson('/_experiments/expose', ['experiment' => 'exp'])->assertOk();
+    $this->flushHeaders()->getJson('/_experiments/variant/exp')->assertOk(); // reads are not checked
+
+    config(['pennant-experiments.tracking.check_origin' => false]);
+    $this->flushHeaders()->postJson('/_experiments/expose', ['experiment' => 'exp'])->assertOk();
+});
+
+it('leaves out bots and privacy signals for request participants, signed in or not', function (array $headers) {
+    $user = $this->user();
+    $this->actingAs($user);
+    foreach ($headers as $name => $value) {
+        $this->app['request']->headers->set($name, $value);
+    }
+
+    expect(Experiments::expose('exp'))->toBe('control')
+        ->and(Experiments::convert('exp', 'signup'))->toBeFalse()
+        ->and(DB::table('pennant_experiment_exposures')->count())->toBe(0)
+        ->and(DB::table('features')->count())->toBe(0);
+
+    // A scope passed explicitly (e.g. from a job) is not judged by the request.
+    Experiments::expose('exp', $user);
+    expect(DB::table('pennant_experiment_exposures')->count())->toBe(1);
+})->with([
+    'bot' => [['User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1)']],
+    'DNT' => [['DNT' => '1']],
+    'GPC' => [['Sec-GPC' => '1']],
+]);
+
+it('sets no visitor cookie for a privacy signal, and counts again when it is not honoured', function () {
+    $this->app['request']->headers->set('Sec-GPC', '1');
+    Experiments::expose('exp');
+    expect(Illuminate\Support\Facades\Cookie::queued('pennant_experiments_visitor'))->toBeNull()
+        ->and(DB::table('pennant_experiment_exposures')->count())->toBe(0);
+
+    config(['pennant-experiments.respect_privacy_signals' => false]);
+    $this->manager()->flush();
+    Experiments::expose('exp');
+    expect(DB::table('pennant_experiment_exposures')->count())->toBe(1);
+});
+
+it('marks the visitor cookie Secure on HTTPS or when session.secure is on', function () {
+    $this->get('https://localhost/_experiments/variant/exp')->assertOk()
+        ->assertCookie('pennant_experiments_visitor');
+    $https = collect($this->get('https://localhost/_experiments/variant/exp', ['User-Agent' => 'Mozilla/5.0 Test'])->headers->getCookies())
+        ->firstWhere(fn ($c) => $c->getName() === 'pennant_experiments_visitor');
+    expect($https?->isSecure())->toBeTrue();
+
+    $http = collect($this->get('http://localhost/_experiments/variant/exp', ['User-Agent' => 'Mozilla/5.0 Test'])->headers->getCookies())
+        ->firstWhere(fn ($c) => $c->getName() === 'pennant_experiments_visitor');
+    expect($http?->isSecure())->toBeFalse();
+
+    config(['session.secure' => true]);
+    $forced = collect($this->get('http://localhost/_experiments/variant/exp', ['User-Agent' => 'Mozilla/5.0 Test'])->headers->getCookies())
+        ->firstWhere(fn ($c) => $c->getName() === 'pennant_experiments_visitor');
+    expect($forced?->isSecure())->toBeTrue();
 });

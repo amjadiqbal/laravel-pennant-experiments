@@ -38,7 +38,9 @@ Docs and demo: https://amjad.com.pk/laravel/packages/laravel-pennant-experiments
   same user, team or guest always gets the same one. With Pennant's database driver the first answer is
   also stored, so it stays put even if you change the weights later.
 - **Guests too.** Signed-out visitors get a random id in a long-lived cookie. When they sign in, their
-  exposure, conversions and variant move to their user, so they are counted once and see the same thing.
+  exposure and conversions move to their user for every experiment the user has not seen yet, so they are
+  counted once; for running experiments the user also keeps the guest's variant. See
+  [Guests who sign in](#guests-who-sign-in).
 - **Exposure tracking.** Only scopes that actually saw the variant are counted. `variant()` is for logic;
   `expose()` or `@variant` in Blade records the exposure.
 - **Conversion goals** from PHP (`Experiments::convert()`) or JavaScript (`PennantExperiments.convert()`),
@@ -49,7 +51,9 @@ Docs and demo: https://amjad.com.pk/laravel/packages/laravel-pennant-experiments
   detectable effect). No verdict before the data is there, and no "significant" before the plan is reached.
 - **Winner rollout.** End the experiment from the results page or `php artisan pennant-experiments:end`:
   everyone gets the winner from then on, stored Pennant values are rewritten to it, and recording stops.
-- **Bots** get the control and are never counted. **Eligibility** rules keep anyone out of an experiment.
+- **Bots and privacy signals.** When the participant comes from the current request, bots and requests
+  with `DNT: 1` or `Sec-GPC: 1` get the control, no cookie, and are never counted. **Eligibility** rules
+  keep anyone out of an experiment.
 - Plain Blade, no Livewire, Filament or Nova. No telemetry, no network calls.
 
 ## Why this package
@@ -153,8 +157,31 @@ From JavaScript, add `@experimentsScript` to your layout, then:
 ```
 
 The endpoints (`POST /_experiments/expose`, `/_experiments/convert`, `GET /_experiments/variant/{name}`)
-use the `web` middleware with CSRF and a rate limit. The participant always comes from the session or the
-visitor cookie, never from the request body.
+use the `web` middleware (CSRF) and a rate limit (`throttle:120,1`). The POST endpoints also check that the
+`Origin` header (or, without one, the `Referer`) matches the request's scheme, host and port, so only your
+own pages can record; behind a proxy, configure Laravel's trusted proxies so the request sees the public
+host. The participant always comes from the session or the visitor cookie, never from the request body.
+
+## Guests who sign in
+
+On Laravel's `Login` event (with `merge_visitor_on_login`), the guest's visitor id is looked up and, for
+each experiment:
+
+- **the user has no exposure yet:** the guest's exposure and conversions are moved to the user (counted
+  once). If the experiment is still running, the user is also given the guest's variant in Pennant, so they
+  keep seeing it. For an ended experiment everyone gets the winner anyway.
+- **the user was already exposed:** nothing moves. The user keeps their own variant and data, and the
+  guest's rows stay as a separate participant (one person can then be counted twice, e.g. after using two
+  devices).
+
+## Bots, Do Not Track and Global Privacy Control
+
+When the participant comes from the current request (you called `variant()`, `expose()` or `convert()`
+without a scope, `@variant` without a scope, the JavaScript endpoints, or you passed a `Visitor`), the
+request is left out if its user agent looks like a bot (`bot_pattern`) or it sends `DNT: 1` or
+`Sec-GPC: 1` (`respect_privacy_signals`, on by default): it sees the control, no visitor cookie is set, and
+nothing is recorded. This applies to signed-in users too. Scopes you pass yourself (a user from a job, a
+team) are not checked, since there is no request to judge them by.
 
 ## Read the results
 
@@ -184,10 +211,17 @@ beat control. The verdict is one of:
 - **Several challengers**: alpha is split between them (Bonferroni), so three variants against a control
   are each tested at 0.05 / 3.
 - **Probability to beat control**: Beta(1 + conversions, 1 + non-conversions) posteriors with a uniform
-  prior, using Evan Miller's exact closed-form sum (a normal approximation above 20,000 conversions).
+  prior, using Evan Miller's exact closed-form sum. When the challenger has more than 20,000 conversions
+  (the sum has one term per conversion), it switches to a normal approximation of the two posteriors.
   It says how likely the variant is better, not by how much.
-- **Planned sample size** per variant (Fleiss, no continuity correction): from `sample_size`, or from
-  `minimum_detectable_effect` at the control's observed rate, with the configured alpha and power.
+- **Intervals** (the rate's Wilson interval and the difference interval) use the same adjusted level as
+  the test: 95% with one challenger, 97.5% with two (0.05 / 2), and so on, so they are read at the same
+  error rate as the p-value. (The difference interval uses the unpooled standard error and the test the
+  pooled one, so in borderline cases one can just exclude zero while the other is just not significant.)
+- **Planned sample size** per variant (Fleiss, no continuity correction): `sample_size` if you set it.
+  Otherwise, from `minimum_detectable_effect` and the **control's observed rate**, with the adjusted alpha
+  and the configured power: it is empty until the control has a conversion, and it moves as the control's
+  rate settles, so set `sample_size` yourself if you want a fixed target from day one.
 - **No peeking claims**: a p-value is only valid at the sample size you planned for. Looking every day and
   stopping at the first p < 0.05 makes false winners far more likely than 5%, so before the plan is
   reached the page says "Keep running", whatever the p-value.
@@ -205,7 +239,11 @@ php artisan pennant-experiments:end checkout-button --winner=green
 
 From then on every scope gets the winner, including scopes never seen before. Stored Pennant values for
 the feature are rewritten to it (`Feature::activateForEveryone()`), and no more exposures or conversions
-are recorded. **Run again** removes the stored values so everyone is assigned afresh.
+are recorded.
+
+**Start over** (on an ended experiment, after a confirmation) resets it completely: its exposures and
+conversions are deleted, its stored Pennant values are purged, and it runs again from now, so every scope
+is assigned and counted afresh. The earlier results are gone; read or export them first.
 
 When you are done, replace the experiment in code with the winning behaviour and remove the definition.
 Experiments with data but no definition are listed at the bottom of the index page.
@@ -219,14 +257,17 @@ nothing changes; with an older dashboard, the experiments pages still link back 
 
 ## Who can see the results
 
-Two gates, both allowing only the `local` environment until you define them:
+Two independent gates, each allowing only the `local` environment until you define it:
 
 ```php
 use Illuminate\Support\Facades\Gate;
 
-Gate::define('viewPennantExperiments', fn ($user = null) => $user?->is_admin);
-Gate::define('managePennantExperiments', fn ($user = null) => $user?->is_admin); // end / run again
+Gate::define('viewPennantExperiments', fn ($user = null) => $user?->is_admin);   // see results
+Gate::define('managePennantExperiments', fn ($user = null) => $user?->is_admin); // end, start over
 ```
+
+Defining only the view gate does not let anyone end or reset experiments outside `local`; define the
+manage gate too.
 
 `PENNANT_EXPERIMENTS_READ_ONLY=true` disables ending and restarting for everyone.
 
@@ -241,11 +282,13 @@ Gate::define('managePennantExperiments', fn ($user = null) => $user?->is_admin);
 | `cookie.name`, `cookie.minutes` | `pennant_experiments_visitor`, 1 year | the visitor cookie |
 | `merge_visitor_on_login` | `true` | move a guest's data to the user on `Login` |
 | `exclude_bots`, `bot_pattern` | `true` | bots get the control, uncounted |
+| `respect_privacy_signals` | `true` | `DNT: 1` / `Sec-GPC: 1` requests get the control, uncounted |
 | `statistics.alpha`, `.power` | `0.05`, `0.8` | |
 | `statistics.min_exposures`, `.min_conversions` | `100`, `10` | per variant, before any verdict |
 | `path`, `domain`, `middleware` | next to the dashboard, `null`, `['web']` | the results pages |
 | `read_only` | `false` | |
 | `tracking.enabled`, `.path`, `.middleware` | `true`, `_experiments`, `['web', 'throttle:120,1']` | JavaScript endpoints |
+| `tracking.check_origin` | `true` | POSTs must come from your own scheme, host and port |
 | `dashboard_tab` | `true` | the tab in the Pennant dashboard |
 | `connection`, `tables` | default connection | the package's tables |
 
@@ -255,8 +298,9 @@ Gate::define('managePennantExperiments', fn ($user = null) => $user?->is_admin);
   driver). Don't change them mid-test unless you accept that the groups are no longer comparable.
 - **Unique converters, not events.** A goal reached three times by the same scope counts once, which is
   what the z-test assumes (one trial per scope).
-- **Privacy.** The visitor cookie is a random id, first-party, http-only. No IP addresses or user agents
-  are stored.
+- **Privacy.** The visitor cookie is a random id, first-party, http-only, `SameSite=Lax`, and `Secure`
+  when `session.secure` is on or the request is HTTPS. No IP addresses or user agents are stored. Do Not
+  Track and Global Privacy Control are honoured (see above).
 - **Array driver.** Assignment stays sticky through the hash; nothing is stored in Pennant, but exposures
   and conversions still are.
 

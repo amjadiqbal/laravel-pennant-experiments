@@ -36,16 +36,39 @@ it('refuses a winner that is not a variant', function () {
     expect(fn () => Experiments::end('exp', 'purple'))->toThrow(InvalidArgumentException::class);
 });
 
-it('can run again after ending: stored rollout values are removed', function () {
+it('starts over from zero: data deleted, stored values purged, scopes counted afresh', function () {
+    Experiments::define('other', ['control', 'b']);
     $user = $this->user();
     Experiments::expose('exp', $user);
+    Experiments::convert('exp', 'conversion', $user);
+    Experiments::expose('other', $user);
     Experiments::end('exp', 'b');
+
     Experiments::restart('exp');
     $this->nextRequest();
 
     expect(Experiments::isRunning('exp'))->toBeTrue()
         ->and(DB::table('features')->where('name', 'exp')->count())->toBe(0)
-        ->and(DB::table('pennant_experiment_exposures')->count())->toBe(1);
+        ->and(DB::table('pennant_experiment_exposures')->where('experiment', 'exp')->count())->toBe(0)
+        ->and(DB::table('pennant_experiment_conversions')->where('experiment', 'exp')->count())->toBe(0)
+        ->and(DB::table('pennant_experiment_exposures')->where('experiment', 'other')->count())->toBe(1);
+
+    // The same scope is exposed and counted again, with a fresh assignment.
+    $variant = Experiments::expose('exp', $user);
+    expect(DB::table('pennant_experiment_exposures')->where('experiment', 'exp')->value('variant'))->toBe($variant);
+});
+
+it('does not keep a guest\'s variant on the user for an ended experiment', function () {
+    $id = '8b1c6d0e-2f3a-4b5c-9d6e-7f8091a2b3c4';
+    $this->app['request']->cookies->set('pennant_experiments_visitor', $id);
+    Experiments::expose('exp');
+    Experiments::end('exp', 'b');
+    $user = $this->user();
+    event(new Login('web', $user, false));
+    $this->nextRequest();
+
+    expect(DB::table('pennant_experiment_exposures')->value('scope'))->toBe($user::class.'|'.$user->id)
+        ->and(Experiments::variant('exp', $user))->toBe('b');
 });
 
 it('moves a guest to the user on login: counted once, same variant', function () {

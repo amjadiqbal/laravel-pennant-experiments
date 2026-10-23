@@ -132,10 +132,10 @@
     <div class="panel">
         @if ($ended)
             <h2>Ended</h2>
-            <p class="muted">Everyone gets <b class="mono">{{ $state['winner'] }}</b>, stored Pennant values were updated, and nothing more is recorded.</p>
-            <form method="post" action="{{ route('pennant-experiments.restart', $definition->name) }}" class="inline" data-confirm="Run this experiment again? Stored values from the rollout are removed and everyone is assigned afresh.">
+            <p class="muted">Everyone gets <b class="mono">{{ $state['winner'] }}</b>, stored Pennant values were updated, and nothing more is recorded. <b>Start over</b> deletes this experiment's exposures and conversions and assigns everyone afresh.</p>
+            <form method="post" action="{{ route('pennant-experiments.restart', $definition->name) }}" class="inline" data-confirm="Start this experiment over? All its exposures and conversions are deleted, stored values are removed and everyone is assigned afresh. This cannot be undone.">
                 @csrf
-                <button class="btn" type="submit" @disabled(! $canManage)>Run again</button>
+                <button class="btn" type="submit" @disabled(! $canManage)>Start over</button>
             </form>
         @else
             <h2>End the experiment</h2>

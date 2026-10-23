@@ -85,10 +85,10 @@ final class ExperimentManager
             return $winner;
         }
 
-        $scope ??= $this->participant();
-        if ($scope instanceof Visitor && $this->isBot()) {
+        if ($this->excludedFromRequest($scope)) {
             return $definition->control();
         }
+        $scope ??= $this->participant();
 
         $value = Feature::store($definition->store)->for($scope)->value($name);
 
@@ -102,10 +102,13 @@ final class ExperimentManager
     public function expose(string $name, mixed $scope = null): string
     {
         $definition = $this->definition($name);
+        if ($this->excludedFromRequest($scope)) {
+            return $this->winner($name) ?? $definition->control();
+        }
         $scope ??= $this->participant();
         $variant = $this->variant($name, $scope);
 
-        if ($this->countable($definition, $scope)) {
+        if ($this->isRunning($name) && $this->eligible($definition, $scope)) {
             $key = $name.'|'.$this->serialize($scope);
             if (! array_key_exists($key, $this->exposed)) {
                 $this->repository->touch($name);
@@ -129,10 +132,10 @@ final class ExperimentManager
             throw new InvalidArgumentException("Experiment [{$name}] has no goal [{$goal}]. Its goals: ".implode(', ', $definition->goals).'.');
         }
 
-        $scope ??= $this->participant();
-        if (! $this->isRunning($name) || ($scope instanceof Visitor && $this->isBot())) {
+        if (! $this->isRunning($name) || $this->excludedFromRequest($scope)) {
             return false;
         }
+        $scope ??= $this->participant();
 
         $serialized = $this->serialize($scope);
         $variant = $this->repository->exposedVariant($name, $serialized);
@@ -162,16 +165,19 @@ final class ExperimentManager
     }
 
     /**
-     * Run an ended experiment again: stored values from the rollout are removed so every scope is
-     * assigned afresh. Earlier exposures and conversions are kept.
+     * Start the experiment over from zero: its exposures and conversions are deleted, stored
+     * Pennant values for the feature are purged (so every scope is assigned afresh), and it runs
+     * again from now. The results before this point are gone.
      */
     public function restart(string $name): void
     {
         $definition = $this->definition($name);
-        $this->repository->restart($name);
+        $this->repository->reset($name);
         unset($this->states[$name]);
+        $this->exposed = array_filter($this->exposed, fn (string $key): bool => ! str_starts_with($key, $name.'|'), ARRAY_FILTER_USE_KEY);
 
         Feature::store($definition->store)->purge($name);
+        Feature::store($definition->store)->flushCache();
     }
 
     public function results(string $name): Results
@@ -270,8 +276,10 @@ final class ExperimentManager
 
         if (! Visitor::isValidId($id)) {
             $id = (string) Str::uuid();
+            // Secure when the session cookie is, or when the request itself is HTTPS.
+            $secure = (bool) (config('session.secure') ?? $request?->isSecure() ?? false);
             $this->container->make(CookieJar::class)->queue(
-                $name, $id, (int) config('pennant-experiments.cookie.minutes', 525600), null, null, null, true, false, 'lax'
+                $name, $id, (int) config('pennant-experiments.cookie.minutes', 525600), null, null, $secure, true, false, 'lax'
             );
             $request?->cookies->set($name, $id);
         }
@@ -314,6 +322,29 @@ final class ExperimentManager
         return $moved;
     }
 
+    /**
+     * The current request opted out (Do Not Track or Global Privacy Control), when honoured.
+     */
+    public function hasPrivacySignal(): bool
+    {
+        if (! config('pennant-experiments.respect_privacy_signals', true)) {
+            return false;
+        }
+        $request = $this->request();
+
+        return $request !== null && ($request->headers->get('DNT') === '1' || $request->headers->get('Sec-GPC') === '1');
+    }
+
+    /**
+     * Participants taken from the current request (no scope passed, or a Visitor) are left out
+     * for bots and for requests with a privacy signal: they see the control, get no visitor
+     * cookie and are never counted. Scopes you pass yourself (users, teams, ...) are not checked.
+     */
+    private function excludedFromRequest(mixed $scope): bool
+    {
+        return ($scope === null || $scope instanceof Visitor) && ($this->isBot() || $this->hasPrivacySignal());
+    }
+
     public function isBot(): bool
     {
         if (! config('pennant-experiments.exclude_bots', true)) {
@@ -335,18 +366,6 @@ final class ExperimentManager
         $this->exposed = [];
         $this->states = [];
         $this->visitor = null;
-    }
-
-    private function countable(Definition $definition, mixed $scope): bool
-    {
-        if (! $this->isRunning($definition->name)) {
-            return false;
-        }
-        if ($scope instanceof Visitor && $this->isBot()) {
-            return false;
-        }
-
-        return $this->eligible($definition, $scope);
     }
 
     private function request(): ?Request

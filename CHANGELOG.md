@@ -4,6 +4,23 @@ All notable changes to `laravel-pennant-experiments` are documented in this file
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-24
+
+A review of the 0.1.0 README against the code. Behaviour changes are marked.
+
+### Changed
+- **Security:** the `managePennantExperiments` gate is now local-only by default on its own. In 0.1.0 it followed `viewPennantExperiments`, so defining only the view gate also let those users end and reset experiments. If you relied on that, define the manage gate.
+- **Run again is now "Start over" and resets completely** (with a confirmation): the experiment's exposures and conversions are deleted, stored Pennant values purged, and every scope is assigned and counted afresh. In 0.1.0 it kept the old data, and already-exposed scopes kept their first variant.
+- Bots are now left out for every participant taken from the current request, signed-in users included (0.1.0 only checked guests). Scopes you pass yourself are not checked.
+
+### Added
+- Do Not Track and Global Privacy Control are honoured (`respect_privacy_signals`, on by default): such requests see the control, get no visitor cookie and are not counted.
+- The tracking endpoints check that `Origin` (or `Referer`) matches the request's scheme, host and port (`tracking.check_origin`), on top of CSRF and the rate limit.
+- The visitor cookie is `Secure` when `session.secure` is on or the request is HTTPS.
+
+### Documentation
+- What moves when a guest signs in (only experiments the user has not seen; the variant is kept only while running), that intervals use the Bonferroni-adjusted level, when the Bayesian sum switches to the normal approximation (more than 20,000 challenger conversions), and that a planned sample from `minimum_detectable_effect` follows the control's observed rate.
+
 ## [0.1.0] - 2026-10-23
 
 First release.

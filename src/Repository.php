@@ -93,15 +93,23 @@ final class Repository
         ]);
     }
 
-    public function restart(string $experiment): void
+    /** Delete the experiment's data and run it again from now. */
+    public function reset(string $experiment): void
     {
-        $this->experiments()->where('name', $experiment)->update([
-            'status' => 'running',
-            'winner' => null,
-            'ended_at' => null,
-            'ended_by' => null,
-            'updated_at' => Carbon::now(),
-        ]);
+        $this->connection()->transaction(function () use ($experiment): void {
+            $this->conversions()->where('experiment', $experiment)->delete();
+            $this->exposures()->where('experiment', $experiment)->delete();
+            $this->touch($experiment);
+            $now = Carbon::now();
+            $this->experiments()->where('name', $experiment)->update([
+                'status' => 'running',
+                'winner' => null,
+                'started_at' => $now,
+                'ended_at' => null,
+                'ended_by' => null,
+                'updated_at' => $now,
+            ]);
+        });
     }
 
     /** True when this call recorded the exposure (false: the scope was already exposed). */

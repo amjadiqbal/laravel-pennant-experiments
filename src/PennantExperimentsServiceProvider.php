@@ -7,6 +7,7 @@ namespace AmjadIqbal\PennantExperiments;
 use AmjadIqbal\PennantExperiments\Console\EndCommand;
 use AmjadIqbal\PennantExperiments\Console\ResultsCommand;
 use AmjadIqbal\PennantExperiments\Http\Authorize;
+use AmjadIqbal\PennantExperiments\Http\VerifyOrigin;
 use Composer\InstalledVersions;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Foundation\Console\AboutCommand;
@@ -42,12 +43,13 @@ final class PennantExperimentsServiceProvider extends ServiceProvider
             $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         }
 
-        // Local only until the app defines its own gates (app providers boot after this one, so theirs win).
+        // Each gate is local-only until the app defines it (app providers boot after this one, so theirs win).
+        // Defining only the view gate does not open "end" and "start over": manage stays local-only on its own.
         if (! Gate::has('viewPennantExperiments')) {
             Gate::define('viewPennantExperiments', fn ($user = null): bool => $this->app->environment('local'));
         }
         if (! Gate::has('managePennantExperiments')) {
-            Gate::define('managePennantExperiments', fn ($user = null): bool => Gate::forUser($user)->check('viewPennantExperiments', [request()]));
+            Gate::define('managePennantExperiments', fn ($user = null): bool => $this->app->environment('local'));
         }
 
         $this->registerBlade();
@@ -70,7 +72,7 @@ final class PennantExperimentsServiceProvider extends ServiceProvider
         if (config('pennant-experiments.tracking.enabled', true)) {
             Route::group([
                 'prefix' => trim((string) config('pennant-experiments.tracking.path', '_experiments'), '/'),
-                'middleware' => array_values(array_filter((array) config('pennant-experiments.tracking.middleware', ['web']), 'is_string')),
+                'middleware' => [...array_values(array_filter((array) config('pennant-experiments.tracking.middleware', ['web']), 'is_string')), VerifyOrigin::class],
             ], fn () => $this->loadRoutesFrom(__DIR__.'/../routes/tracking.php'));
         }
 
