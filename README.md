@@ -181,7 +181,9 @@ without a scope, `@variant` without a scope, the JavaScript endpoints, or you pa
 request is left out if its user agent looks like a bot (`bot_pattern`) or it sends `DNT: 1` or
 `Sec-GPC: 1` (`respect_privacy_signals`, on by default): it sees the control, no visitor cookie is set, and
 nothing is recorded. This applies to signed-in users too. Scopes you pass yourself (a user from a job, a
-team) are not checked, since there is no request to judge them by.
+team) are not checked, since there is no request to judge them by. If your own code calls `Experiments::participant()` or
+`Experiments::visitor()` directly, that creates the visitor cookie whatever the request sends; the
+package's own helpers (`variant()`, `expose()`, `convert()`, `@variant`, the JavaScript endpoints) don't.
 
 ## Read the results
 
