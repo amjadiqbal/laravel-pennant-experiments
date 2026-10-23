@@ -84,7 +84,7 @@
         .rate .ci { position: absolute; top: 8px; height: 2px; background: var(--whisker); }
         .rate .ci::before, .rate .ci::after { content: ""; position: absolute; top: -4px; width: 2px; height: 10px; background: var(--whisker); }
         .rate .ci::before { left: 0; } .rate .ci::after { right: 0; }
-        footer.foot { color: var(--muted); font-size: 12.5px; padding: 0 0 32px; }
+        footer.foot { color: var(--muted); font-size: 12.5px; padding-bottom: 32px; }
         @media (max-width: 640px) { .hide-sm { display: none; } h1 { font-size: 19px; } }
     </style>
 </head>
