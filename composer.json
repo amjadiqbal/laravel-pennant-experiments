@@ -1,0 +1,91 @@
+{
+    "name": "amjadiqbal/laravel-pennant-experiments",
+    "description": "A/B and multivariate testing for Laravel Pennant: define experiments with weighted variants as Pennant features, sticky assignment for users, teams or guests, exposure and conversion tracking from PHP and JavaScript, two-proportion z-test and Bayesian probability to beat control with sample-size warnings, a results view and a one-click winner rollout. Unofficial community package.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "amjadiqbal",
+        "laravel",
+        "laravel-package",
+        "laravel-pennant",
+        "pennant",
+        "ab-testing",
+        "a-b-testing",
+        "split-testing",
+        "multivariate-testing",
+        "experiments",
+        "conversion-tracking",
+        "feature-flags",
+        "statistics",
+        "bayesian",
+        "z-test"
+    ],
+    "homepage": "https://amjad.com.pk/laravel/packages/laravel-pennant-experiments",
+    "authors": [
+        {
+            "name": "Amjad Iqbal",
+            "homepage": "https://amjad.com.pk",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/amjadiqbal/laravel-pennant-experiments/issues",
+        "source": "https://github.com/amjadiqbal/laravel-pennant-experiments",
+        "docs": "https://amjad.com.pk/laravel/packages/laravel-pennant-experiments"
+    },
+    "require": {
+        "php": "^8.3",
+        "illuminate/auth": "^12.0|^13.0",
+        "illuminate/console": "^12.0|^13.0",
+        "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/cookie": "^12.0|^13.0",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/routing": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "illuminate/view": "^12.0|^13.0",
+        "laravel/pennant": "^1.18"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.0",
+        "laravel/pint": "^1.0",
+        "larastan/larastan": "^3.0"
+    },
+    "suggest": {
+        "amjadiqbal/laravel-pennant-dashboard": "Adds an Experiments tab to the Pennant dashboard (v1.1+)."
+    },
+    "autoload": {
+        "psr-4": {
+            "AmjadIqbal\\PennantExperiments\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AmjadIqbal\\PennantExperiments\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AmjadIqbal\\PennantExperiments\\PennantExperimentsServiceProvider"
+            ],
+            "aliases": {
+                "Experiments": "AmjadIqbal\\PennantExperiments\\Facades\\Experiments"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "pint": "vendor/bin/pint --test",
+        "analyse": "vendor/bin/phpstan analyse --memory-limit=1G"
+    }
+}
