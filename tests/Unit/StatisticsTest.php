@@ -2,6 +2,7 @@
 
 use AmjadIqbal\PennantExperiments\Stats\Distributions;
 use AmjadIqbal\PennantExperiments\Stats\Statistics;
+use AmjadIqbal\PennantExperiments\Support\Format;
 
 /*
  * Reference values: textbook examples where they exist, otherwise independent computations
@@ -112,8 +113,8 @@ it('computes the Wilson score interval', function () {
 });
 
 it('never shows a probability as a certainty', function () {
-    expect(AmjadIqbal\PennantExperiments\Support\Format::probability(0.9997))->toBe('> 99.9%')
-        ->and(AmjadIqbal\PennantExperiments\Support\Format::probability(0.0002))->toBe('< 0.1%')
-        ->and(AmjadIqbal\PennantExperiments\Support\Format::probability(0.98418))->toBe('98.4%')
-        ->and(AmjadIqbal\PennantExperiments\Support\Format::probability(null))->toBe('–');
+    expect(Format::probability(0.9997))->toBe('> 99.9%')
+        ->and(Format::probability(0.0002))->toBe('< 0.1%')
+        ->and(Format::probability(0.98418))->toBe('98.4%')
+        ->and(Format::probability(null))->toBe('–');
 });
