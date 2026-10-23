@@ -11,6 +11,17 @@ final class Format
         return $value === null ? '–' : number_format($value * 100, $decimals).'%';
     }
 
+    /** A probability, never rounded to a certainty it isn't: "> 99.9%" / "< 0.1%" at the ends. */
+    public static function probability(?float $value): string
+    {
+        return match (true) {
+            $value === null => '–',
+            $value > 0.999 => '> 99.9%',
+            $value < 0.001 => '< 0.1%',
+            default => number_format($value * 100, 1).'%',
+        };
+    }
+
     public static function signedPercent(?float $value, int $decimals = 1): string
     {
         if ($value === null) {

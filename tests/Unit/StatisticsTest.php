@@ -110,3 +110,10 @@ it('computes the Wilson score interval', function () {
     expect($low)->toEqualWithDelta(0.0178762131, 1e-9)->and($high)->toEqualWithDelta(0.4041500268, 1e-9);
     expect(Statistics::wilson(0, 0))->toBeNull();
 });
+
+it('never shows a probability as a certainty', function () {
+    expect(AmjadIqbal\PennantExperiments\Support\Format::probability(0.9997))->toBe('> 99.9%')
+        ->and(AmjadIqbal\PennantExperiments\Support\Format::probability(0.0002))->toBe('< 0.1%')
+        ->and(AmjadIqbal\PennantExperiments\Support\Format::probability(0.98418))->toBe('98.4%')
+        ->and(AmjadIqbal\PennantExperiments\Support\Format::probability(null))->toBe('–');
+});

@@ -54,7 +54,7 @@ final class ResultsCommand extends Command
                     $row['control'] ? '' : Format::signedPercent($row['lift']),
                     $row['control'] ? '' : Format::interval($row['ci']),
                     $row['control'] ? '' : Format::pValue($row['p']),
-                    $row['control'] ? '' : Format::percent($row['probability'], 1),
+                    $row['control'] ? '' : Format::probability($row['probability']),
                     Results::verdictLabel($row['verdict'], $planned !== null),
                 ];
             }

@@ -52,7 +52,7 @@
                                 @if ($best === null || $best['probability'] === null)
                                     <span class="muted">no data yet</span>
                                 @else
-                                    <span class="mono">{{ $best['variant'] }}</span>: {{ \AmjadIqbal\PennantExperiments\Support\Format::percent($best['probability'], 1) }} to beat control
+                                    <span class="mono">{{ $best['variant'] }}</span>: {{ \AmjadIqbal\PennantExperiments\Support\Format::probability($best['probability']) }} to beat control
                                     @if ($best['verdict'] === \AmjadIqbal\PennantExperiments\Results::TOO_EARLY) <span class="pill warn">too early</span>@endif
                                 @endif
                             </td>

@@ -95,7 +95,7 @@
                             <td class="num">{{ $row['control'] ? '' : Format::signedPercent($row['lift']) }}</td>
                             <td class="num hide-sm small">{{ $row['control'] ? '' : ($anyConversions && $row['ci'] !== null ? Format::points((float) $row['diff']).' pp '.Format::interval($row['ci']) : '–') }}</td>
                             <td class="num">{{ $row['control'] ? '' : Format::pValue($row['p']) }}</td>
-                            <td class="num">{{ $row['control'] ? '' : Format::percent($row['probability'], 1) }}</td>
+                            <td class="num">{{ $row['control'] ? '' : Format::probability($row['probability']) }}</td>
                             <td>
                                 @if (! $row['control'])
                                     <span @class(['pill', 'on' => $row['verdict'] === Results::BETTER, 'danger' => $row['verdict'] === Results::WORSE, 'warn' => in_array($row['verdict'], [Results::TOO_EARLY, Results::KEEP_RUNNING], true), 'outline' => $row['verdict'] === Results::NO_DIFFERENCE])>{{ Results::verdictLabel($row['verdict'], $planned !== null) }}</span>
