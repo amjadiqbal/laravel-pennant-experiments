@@ -61,6 +61,9 @@ final class Format
 
     public static function number(float $value, int $decimals = 2): string
     {
-        return rtrim(rtrim(number_format($value, $decimals), '0'), '.');
+        $formatted = number_format($value, $decimals);
+
+        // Only trim decimals: 80 stays "80", 0.0250 becomes "0.025".
+        return str_contains($formatted, '.') ? rtrim(rtrim($formatted, '0'), '.') : $formatted;
     }
 }

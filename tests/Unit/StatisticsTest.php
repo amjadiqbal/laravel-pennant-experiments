@@ -118,3 +118,10 @@ it('never shows a probability as a certainty', function () {
         ->and(Format::probability(0.98418))->toBe('98.4%')
         ->and(Format::probability(null))->toBe('–');
 });
+
+it('formats plain numbers without eating whole-number zeros', function () {
+    expect(Format::number(80.0, 0))->toBe('80')
+        ->and(Format::number(100.0, 1))->toBe('100')
+        ->and(Format::number(0.025, 4))->toBe('0.025')
+        ->and(Format::number(97.5, 1))->toBe('97.5');
+});
