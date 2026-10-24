@@ -276,8 +276,8 @@ final class ExperimentManager
 
         if (! Visitor::isValidId($id)) {
             $id = (string) Str::uuid();
-            // Secure when the session cookie is, or when the request itself is HTTPS.
-            $secure = (bool) (config('session.secure') ?? $request?->isSecure() ?? false);
+            // Secure when the session cookie is, or when the request itself is HTTPS (either one is enough).
+            $secure = (bool) config('session.secure') || ($request?->isSecure() ?? false);
             $this->container->make(CookieJar::class)->queue(
                 $name, $id, (int) config('pennant-experiments.cookie.minutes', 525600), null, null, $secure, true, false, 'lax'
             );
@@ -337,7 +337,8 @@ final class ExperimentManager
 
     /**
      * Participants taken from the current request (no scope passed, or a Visitor) are left out
-     * for bots and for requests with a privacy signal: they see the control, get no visitor
+     * for bots and for requests with a privacy signal: they see the control (the winner once the
+     * experiment has ended), get no visitor
      * cookie and are never counted. Scopes you pass yourself (users, teams, ...) are not checked.
      */
     private function excludedFromRequest(mixed $scope): bool

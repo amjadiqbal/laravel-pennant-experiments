@@ -150,6 +150,12 @@ it('marks the visitor cookie Secure on HTTPS or when session.secure is on', func
         ->firstWhere(fn ($c) => $c->getName() === 'pennant_experiments_visitor');
     expect($http?->isSecure())->toBeFalse();
 
+    // An explicit SESSION_SECURE_COOKIE=false must not switch Secure off on HTTPS.
+    config(['session.secure' => false]);
+    $explicitOff = collect($this->get('https://localhost/_experiments/variant/exp', ['User-Agent' => 'Mozilla/5.0 Test'])->headers->getCookies())
+        ->firstWhere(fn ($c) => $c->getName() === 'pennant_experiments_visitor');
+    expect($explicitOff?->isSecure())->toBeTrue();
+
     config(['session.secure' => true]);
     $forced = collect($this->get('http://localhost/_experiments/variant/exp', ['User-Agent' => 'Mozilla/5.0 Test'])->headers->getCookies())
         ->firstWhere(fn ($c) => $c->getName() === 'pennant_experiments_visitor');

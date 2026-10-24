@@ -23,12 +23,12 @@ return [
     /*
     | Participants taken from the current request (no scope passed, or a visitor) are left out
     | when the request is from a bot or carries a privacy signal (DNT: 1 or Sec-GPC: 1): they see
-    | the control, get no visitor cookie and are never counted. Scopes you pass yourself
+    | the control (the winner once the experiment has ended), get no visitor cookie and are never counted. Scopes you pass yourself
     | (a user, a team, ...) are not checked.
     */
     'respect_privacy_signals' => true,
 
-    // Crawlers get the control variant and are never counted.
+    // Crawlers get the control variant (the winner once ended) and are never counted.
     'exclude_bots' => true,
     'bot_pattern' => '/bot|crawl|spider|slurp|mediapartners|facebookexternalhit|embedly|quora link preview|outbrain|pinterest|vkshare|w3c_validator|whatsapp|preview|headless|lighthouse|pingdom|uptime/i',
 

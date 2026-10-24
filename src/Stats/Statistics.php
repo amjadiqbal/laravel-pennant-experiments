@@ -54,7 +54,7 @@ final class Statistics
      *
      *   P = sum_{i=0}^{aB-1} B(aA + i, bA + bB) / ((bB + i) B(1 + i, bB) B(aA, bA))
      *
-     * The sum has aB terms (variant conversions + 1). Above $exactLimit terms it switches to the
+     * The sum has aB terms (variant conversions + 1). With more than $exactLimit variant conversions it switches to the
      * normal approximation of the two Beta posteriors, which is very accurate at that size.
      */
     public static function probabilityToBeat(int $controlConversions, int $controlExposed, int $variantConversions, int $variantExposed, int $exactLimit = 20000): float
@@ -67,7 +67,7 @@ final class Statistics
         $aB = 1.0 + $variantConversions;
         $bB = 1.0 + $variantExposed - $variantConversions;
 
-        if ($aB > $exactLimit) {
+        if ($variantConversions > $exactLimit) {
             return self::probabilityToBeatApprox($aA, $bA, $aB, $bB);
         }
 

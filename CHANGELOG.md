@@ -4,6 +4,15 @@ All notable changes to `laravel-pennant-experiments` are documented in this file
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-24
+
+### Fixed
+- The visitor cookie is now `Secure` on every HTTPS request. In 0.1.1 an explicit `SESSION_SECURE_COOKIE=false` switched it off even on HTTPS; now either `session.secure` or HTTPS is enough, as documented.
+- The Bayesian probability switches to the normal approximation only with more than 20,000 challenger conversions, as documented (0.1.1 switched at exactly 20,000).
+
+### Documentation
+- Excluded requests (bots, DNT, GPC) see the control while an experiment runs and the winner after it ends.
+
 ## [0.1.1] - 2026-10-24
 
 A review of the 0.1.0 README against the code. Behaviour changes are marked.

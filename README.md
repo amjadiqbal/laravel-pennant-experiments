@@ -52,7 +52,8 @@ Docs and demo: https://amjad.com.pk/laravel/packages/laravel-pennant-experiments
 - **Winner rollout.** End the experiment from the results page or `php artisan pennant-experiments:end`:
   everyone gets the winner from then on, stored Pennant values are rewritten to it, and recording stops.
 - **Bots and privacy signals.** When the participant comes from the current request, bots and requests
-  with `DNT: 1` or `Sec-GPC: 1` get the control, no cookie, and are never counted. **Eligibility** rules
+  with `DNT: 1` or `Sec-GPC: 1` get the control while it runs (the winner after it ends), no cookie, and
+  are never counted. **Eligibility** rules
   keep anyone out of an experiment.
 - Plain Blade, no Livewire, Filament or Nova. No telemetry, no network calls.
 
@@ -179,7 +180,8 @@ each experiment:
 When the participant comes from the current request (you called `variant()`, `expose()` or `convert()`
 without a scope, `@variant` without a scope, the JavaScript endpoints, or you passed a `Visitor`), the
 request is left out if its user agent looks like a bot (`bot_pattern`) or it sends `DNT: 1` or
-`Sec-GPC: 1` (`respect_privacy_signals`, on by default): it sees the control, no visitor cookie is set, and
+`Sec-GPC: 1` (`respect_privacy_signals`, on by default): it sees the control while the experiment runs (the
+winner after it ends), no visitor cookie is set, and
 nothing is recorded. This applies to signed-in users too. Scopes you pass yourself (a user from a job, a
 team) are not checked, since there is no request to judge them by. If your own code calls `Experiments::participant()` or
 `Experiments::visitor()` directly, that creates the visitor cookie whatever the request sends; the
@@ -283,8 +285,8 @@ manage gate too.
 | `guard` | `null` | auth guard for the user |
 | `cookie.name`, `cookie.minutes` | `pennant_experiments_visitor`, 1 year | the visitor cookie |
 | `merge_visitor_on_login` | `true` | move a guest's data to the user on `Login` |
-| `exclude_bots`, `bot_pattern` | `true` | bots get the control, uncounted |
-| `respect_privacy_signals` | `true` | `DNT: 1` / `Sec-GPC: 1` requests get the control, uncounted |
+| `exclude_bots`, `bot_pattern` | `true` | bots get the control (the winner once ended), uncounted |
+| `respect_privacy_signals` | `true` | `DNT: 1` / `Sec-GPC: 1` requests get the control (the winner once ended), uncounted |
 | `statistics.alpha`, `.power` | `0.05`, `0.8` | |
 | `statistics.min_exposures`, `.min_conversions` | `100`, `10` | per variant, before any verdict |
 | `path`, `domain`, `middleware` | next to the dashboard, `null`, `['web']` | the results pages |

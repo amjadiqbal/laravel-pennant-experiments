@@ -125,3 +125,14 @@ it('formats plain numbers without eating whole-number zeros', function () {
         ->and(Format::number(0.025, 4))->toBe('0.025')
         ->and(Format::number(97.5, 1))->toBe('97.5');
 });
+
+it('uses the exact sum up to 20,000 challenger conversions and the approximation above', function () {
+    $approx = fn (int $x, int $n) => Statistics::probabilityToBeatApprox(1.0 + 19000, 1.0 + 400000 - 19000, 1.0 + $x, 1.0 + $n - $x);
+
+    // At exactly 20,000 the exact sum is used (it differs from the approximation in the last digits) ...
+    expect(Statistics::probabilityToBeat(19000, 400000, 20000, 400000))->not->toBe($approx(20000, 400000))
+        // ... and both agree closely, as they should at this size.
+        ->toEqualWithDelta($approx(20000, 400000), 1e-4);
+    // Above it, the approximation itself is returned.
+    expect(Statistics::probabilityToBeat(19000, 400000, 20001, 400000))->toBe($approx(20001, 400000));
+});
