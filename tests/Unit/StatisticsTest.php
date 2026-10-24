@@ -136,3 +136,12 @@ it('uses the exact sum up to 20,000 challenger conversions and the approximation
     // Above it, the approximation itself is returned.
     expect(Statistics::probabilityToBeat(19000, 400000, 20001, 400000))->toBe($approx(20001, 400000));
 });
+
+it('caps a displayed difference interval at plus or minus 100 points and marks it', function () {
+    // 0 of 1 vs 1 of 2: the Wald interval overshoots; the raw values stay as computed.
+    $test = Statistics::zTest(0, 1, 1, 2);
+    expect($test['ci'][1])->toBeGreaterThan(1.0)
+        ->and(Format::interval($test['ci']))->toBe('[−19.30, +100.00 (capped)] pp')
+        ->and(Format::interval([-1.2, 0.05]))->toBe('[−100.00 (capped), +5.00] pp')
+        ->and(Format::interval([-0.01, 0.02]))->toBe('[−1.00, +2.00] pp');
+});

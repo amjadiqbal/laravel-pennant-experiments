@@ -4,6 +4,9 @@ All notable changes to `laravel-pennant-experiments` are documented in this file
 
 ## [Unreleased]
 
+### Fixed
+- The displayed difference interval is capped at -100 / +100 percentage points and marked "(capped)" when the Wald interval overshoots at tiny samples (e.g. 1 of 2 vs 0 of 1 showed +119.30 pp). The raw interval in the results data is unchanged.
+
 ## [0.1.2] - 2026-10-24
 
 ### Fixed

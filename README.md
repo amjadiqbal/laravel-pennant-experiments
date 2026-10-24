@@ -222,6 +222,8 @@ beat control. The verdict is one of:
   the test: 95% with one challenger, 97.5% with two (0.05 / 2), and so on, so they are read at the same
   error rate as the p-value. (The difference interval uses the unpooled standard error and the test the
   pooled one, so in borderline cases one can just exclude zero while the other is just not significant.)
+  At tiny samples the difference interval can run past ±100 points; the page then shows ±100 marked
+  "(capped)".
 - **Planned sample size** per variant (Fleiss, no continuity correction): `sample_size` if you set it.
   Otherwise, from `minimum_detectable_effect` and the **control's observed rate**, with the adjusted alpha
   and the configured power: it is empty until the control has a conversion, and it moves as the control's

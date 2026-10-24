@@ -42,7 +42,12 @@ final class Format
             return '–';
         }
 
-        return '['.self::points($ci[0]).', '.self::points($ci[1]).'] pp';
+        // A difference of two proportions lies in [-1, 1]. The Wald interval can overshoot that at
+        // tiny samples; the displayed bound is capped and marked, the raw value is left in the results.
+        $bound = fn (float $value): string => $value > 1.0 ? self::points(1.0).' (capped)'
+            : ($value < -1.0 ? self::points(-1.0).' (capped)' : self::points($value));
+
+        return '['.$bound($ci[0]).', '.$bound($ci[1]).'] pp';
     }
 
     public static function points(float $value): string
